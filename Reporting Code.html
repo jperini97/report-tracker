@@ -362,7 +362,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
   import {
     getFirestore, collection, doc, onSnapshot,
-    setDoc, deleteDoc, addDoc, serverTimestamp
+    setDoc, deleteDoc, addDoc, serverTimestamp, getDoc
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -387,21 +387,22 @@
   ];
 
   let data = [];
-  let seeded = false;
 
   function save(row){
     setDoc(doc(reportsCol, String(row.id)), row);
   }
 
+  const seedFlagRef = doc(db, "meta", "seeded");
+  getDoc(seedFlagRef).then(snap=>{
+    if(snap.exists()) return;
+    setDoc(seedFlagRef, {at: serverTimestamp()});
+    seed.forEach(r=>{
+      const ref = doc(reportsCol);
+      setDoc(ref, {...r, id: ref.id});
+    });
+  });
+
   onSnapshot(reportsCol, (snap)=>{
-    if(snap.empty && !seeded){
-      seeded = true;
-      seed.forEach(r=>{
-        const ref = doc(reportsCol);
-        setDoc(ref, {...r, id: ref.id});
-      });
-      return;
-    }
     data = snap.docs.map(d=>d.data());
     render();
   });
