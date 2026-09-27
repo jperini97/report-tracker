@@ -355,39 +355,56 @@
 </main>
 
 <footer>
-  <p><strong>About this mockup.</strong> This page is a static file — perfect for GitHub Pages — and every entry is saved in <em>your own browser's local storage</em>, not a shared database. That means if you and a colleague both open the published link, you'll each see and edit your own separate copy, not the same list. It's a faithful preview of the layout and interactions, not yet a multi-person tool.</p>
-  <p>To make entries actually shared across the company, this front end would need to talk to a small backend — a Google Sheet, Airtable base, or lightweight database behind a form submit. Happy to help wire that up when you're ready.</p>
+  <p><strong>About this tracker.</strong> Every entry is saved to a shared database — anyone with this link sees the same live list, and changes sync instantly across everyone viewing it. Deleting a row archives it instead of erasing it, so nothing is ever permanently lost.</p>
 </footer>
 
-<script>
-(function(){
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getFirestore, collection, doc, onSnapshot,
+    setDoc, deleteDoc, addDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJwOpsStnNvA62MmyKTYwvbBQqAI-nRYI",
+    authDomain: "report-tracker-b2d1c.firebaseapp.com",
+    projectId: "report-tracker-b2d1c"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+  const reportsCol = collection(db, "reports");
+  const archiveCol = collection(db, "archive");
+
   const AREAS = ["Accounting","Finance","Capital Markets","Asset Management","Originations","Legal","Compliance","Credit","Servicing","HR","IT","Marketing","Operations","Executive / Leadership","Other"];
   const FREQS = ["Daily","Weekly","Bi-Weekly","Monthly","Quarterly","Semi-Annual","Annual","Ad Hoc"];
   const STATUSES = ["On Track","Needs Follow-up","Overdue","New","Discontinued"];
-  const STORAGE_KEY = "bridgeinvest_report_tracker_v1";
 
   const seed = [
-    {id:1, area:"Accounting", user:"Jane Smith", report:"Monthly Bank Reconciliation", freq:"Monthly", day:"5th business day", sendto:"Controller", status:"On Track", notes:"Send as PDF via email"},
-    {id:2, area:"Capital Markets", user:"Marcus Lee", report:"Warehouse Line Borrowing Base", freq:"Weekly", day:"Every Monday", sendto:"Lender Ops", status:"On Track", notes:""},
-    {id:3, area:"Asset Management", user:"Priya Nair", report:"Watchlist Loan Summary", freq:"Monthly", day:"Last business day", sendto:"Credit Committee", status:"Needs Follow-up", notes:"Waiting on servicer data"},
-    {id:4, area:"Finance", user:"Diego Ramos", report:"Cash Flow Forecast", freq:"Weekly", day:"Fridays", sendto:"CFO", status:"Overdue", notes:"Two weeks behind"},
+    {area:"Accounting", user:"Jane Smith", report:"Monthly Bank Reconciliation", freq:"Monthly", day:"5th business day", sendto:"Controller", status:"On Track", notes:"Send as PDF via email"},
+    {area:"Capital Markets", user:"Marcus Lee", report:"Warehouse Line Borrowing Base", freq:"Weekly", day:"Every Monday", sendto:"Lender Ops", status:"On Track", notes:""},
+    {area:"Asset Management", user:"Priya Nair", report:"Watchlist Loan Summary", freq:"Monthly", day:"Last business day", sendto:"Credit Committee", status:"Needs Follow-up", notes:"Waiting on servicer data"},
+    {area:"Finance", user:"Diego Ramos", report:"Cash Flow Forecast", freq:"Weekly", day:"Fridays", sendto:"CFO", status:"Overdue", notes:"Two weeks behind"},
   ];
 
-  function load(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return seed.slice();
-      const parsed = JSON.parse(raw);
-      if(!Array.isArray(parsed) || parsed.length===0) return seed.slice();
-      return parsed;
-    }catch(e){ return seed.slice(); }
-  }
-  function save(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  let data = [];
+  let seeded = false;
+
+  function save(row){
+    setDoc(doc(reportsCol, String(row.id)), row);
   }
 
-  let data = load();
-  let nextId = Math.max(0, ...data.map(d=>d.id)) + 1;
+  onSnapshot(reportsCol, (snap)=>{
+    if(snap.empty && !seeded){
+      seeded = true;
+      seed.forEach(r=>{
+        const ref = doc(reportsCol);
+        setDoc(ref, {...r, id: ref.id});
+      });
+      return;
+    }
+    data = snap.docs.map(d=>d.data());
+    render();
+  });
 
   function slug(s){ return s.toLowerCase().replace(/[^a-z]+/g,'-').replace(/(^-|-$)/g,''); }
 
@@ -437,7 +454,7 @@
 
       function commit(){
         row[field] = input.value;
-        save();
+        save(row);
         render();
       }
       input.addEventListener("blur", commit);
@@ -506,9 +523,8 @@
       delBtn.title = "Delete row";
       delBtn.addEventListener("click", ()=>{
         if(confirm("Delete this report entry?")){
-          data = data.filter(d=>d.id!==row.id);
-          save();
-          render();
+          addDoc(archiveCol, {...row, deletedAt: serverTimestamp()});
+          deleteDoc(doc(reportsCol, String(row.id)));
         }
       });
       tdDel.appendChild(delBtn);
@@ -536,9 +552,8 @@
       return;
     }
 
-    data.push({id: nextId++, area, user, report, freq, day, sendto, status: status||"New", notes});
-    save();
-    render();
+    const ref = doc(reportsCol);
+    setDoc(ref, {id: ref.id, area, user, report, freq, day, sendto, status: status||"New", notes});
 
     document.getElementById("in-user").value="";
     document.getElementById("in-report").value="";
@@ -570,7 +585,6 @@
   statusFilter.addEventListener("change", render);
 
   render();
-})();
 </script>
 
 </body>
