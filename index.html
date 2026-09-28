@@ -270,6 +270,11 @@
     color:var(--ink);
   }
   #search{ min-width:220px; }
+  .toolbar-actions{
+    display:flex;
+    gap:10px;
+    flex:none;
+  }
   .btn{
     font-family:inherit;
     font-size:14px;
@@ -321,15 +326,12 @@
   }
   .add-grid{
     display:grid;
-    grid-template-columns: 1.1fr 1.1fr 1.6fr 1fr 1.2fr 1.1fr 1fr 1.6fr auto;
+    grid-template-columns: 1fr 1fr 1.4fr 0.9fr 1.1fr 1fr 0.9fr 0.9fr 1.4fr;
     gap:8px;
     align-items:start;
   }
   .add-grid input, .add-grid select{
     width:100%;
-  }
-  .add-grid button{
-    align-self:start;
   }
 
   /* Pending approval */
@@ -502,7 +504,10 @@
       <option value="">All statuses</option>
     </select>
   </div>
-  <button class="btn secondary" id="exportBtn">Export CSV</button>
+  <div class="toolbar-actions">
+    <button class="btn brass" id="addBtn">Add</button>
+    <button class="btn secondary" id="exportBtn">Export CSV</button>
+  </div>
 </div>
 
 <main>
@@ -520,7 +525,6 @@
         <input type="text" id="in-sendto" placeholder="Send to">
         <select id="in-status"></select>
         <input type="text" id="in-notes" placeholder="Notes (optional)">
-        <button class="btn brass" id="addBtn">Add</button>
       </div>
     </div>
 
