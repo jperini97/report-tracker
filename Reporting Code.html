@@ -337,6 +337,37 @@
     align-self:start;
   }
 
+  /* Draft list (staged, not yet published) */
+  .draft-list{ margin-top:2px; }
+  .draft-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:8px 0;
+    border-top:1px dashed var(--line);
+    font-size:13.5px;
+  }
+  .draft-row .info b{ color:var(--navy); }
+  .draft-row .meta{ font-size:12px; color:var(--muted); }
+  .draft-row .draft-remove{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:16px;
+    cursor:pointer;
+    padding:2px 6px;
+    line-height:1;
+    flex:none;
+  }
+  .draft-row .draft-remove:hover{ color:var(--red); }
+  .draft-hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:10px;
+    font-style:italic;
+  }
+
   /* Pending approval */
   .pending-panel{
     background:var(--paper-raised);
@@ -508,7 +539,7 @@
     </select>
   </div>
   <div class="toolbar-actions">
-    <button class="btn brass" id="addBtn">Add</button>
+    <button class="btn brass" id="publishBtn">Publish</button>
     <button class="btn secondary" id="exportBtn">Export CSV</button>
   </div>
 </div>
@@ -530,6 +561,7 @@
         <input type="text" id="in-notes" placeholder="Notes (optional)">
         <button class="btn brass" id="addBtnInline">Add</button>
       </div>
+      <div id="draftList" class="draft-list"></div>
     </div>
 
     <div class="pending-panel" id="pendingPanel" style="display:none;">
@@ -829,20 +861,41 @@
     renderCalendar();
   }
 
-  const addBtn = document.getElementById("addBtn");
+  const publishBtn = document.getElementById("publishBtn");
   const addBtnInline = document.getElementById("addBtnInline");
   const addPanelLabel = document.getElementById("addPanelLabel");
-  if(isAdmin){
-    addBtn.textContent = "Add";
-    addBtnInline.textContent = "Add";
-    addPanelLabel.textContent = "Add a report";
-  } else {
-    addBtn.textContent = "Publish";
-    addBtnInline.textContent = "Publish";
-    addPanelLabel.textContent = "Submit a report (reviewed before it appears)";
+  const draftListEl = document.getElementById("draftList");
+  addPanelLabel.textContent = isAdmin ? "Add a report" : "Submit a report (reviewed before it appears)";
+
+  let drafts = [];
+
+  function renderDrafts(){
+    draftListEl.innerHTML = "";
+    drafts.forEach((entry, i)=>{
+      const row = document.createElement("div");
+      row.className = "draft-row";
+      row.innerHTML = `
+        <div class="info">
+          <b>${entry.report}</b> — ${entry.area||"?"}
+          <div class="meta">${entry.user||"—"} · ${entry.freq||""}${entry.day? " · "+entry.day : ""}${entry.duedate? " · due "+formatDate(entry.duedate) : ""}</div>
+        </div>`;
+      const rm = document.createElement("button");
+      rm.className = "draft-remove";
+      rm.innerHTML = "&times;";
+      rm.title = "Remove from draft";
+      rm.addEventListener("click", ()=>{ drafts.splice(i,1); renderDrafts(); });
+      row.appendChild(rm);
+      draftListEl.appendChild(row);
+    });
+    if(drafts.length){
+      const hint = document.createElement("div");
+      hint.className = "draft-hint";
+      hint.textContent = drafts.length + (drafts.length===1 ? " report staged — click Publish to save." : " reports staged — click Publish to save.");
+      draftListEl.appendChild(hint);
+    }
   }
 
-  function submitReport(){
+  addBtnInline.addEventListener("click", ()=>{
     const area = document.getElementById("in-area").value;
     const user = document.getElementById("in-user").value.trim();
     const report = document.getElementById("in-report").value.trim();
@@ -858,15 +911,8 @@
       return;
     }
 
-    const entry = {area, user, report, freq, day, duedate, sendto, status: status||"New", notes};
-
-    if(isAdmin){
-      const ref = doc(reportsCol);
-      setDoc(ref, {...entry, id: ref.id});
-    } else {
-      addDoc(pendingCol, {...entry, submittedAt: serverTimestamp()});
-      alert("Submitted — this will appear in the tracker once approved.");
-    }
+    drafts.push({area, user, report, freq, day, duedate, sendto, status: status||"New", notes});
+    renderDrafts();
 
     document.getElementById("in-user").value="";
     document.getElementById("in-report").value="";
@@ -875,10 +921,27 @@
     document.getElementById("in-sendto").value="";
     document.getElementById("in-notes").value="";
     document.getElementById("in-report").focus();
-  }
+  });
 
-  addBtn.addEventListener("click", submitReport);
-  addBtnInline.addEventListener("click", submitReport);
+  publishBtn.addEventListener("click", ()=>{
+    if(!drafts.length){
+      alert("Nothing staged yet — click Add to stage a report first.");
+      return;
+    }
+    drafts.forEach(entry=>{
+      if(isAdmin){
+        const ref = doc(reportsCol);
+        setDoc(ref, {...entry, id: ref.id});
+      } else {
+        addDoc(pendingCol, {...entry, submittedAt: serverTimestamp()});
+      }
+    });
+    if(!isAdmin){
+      alert("Published — these will appear in the tracker once approved.");
+    }
+    drafts = [];
+    renderDrafts();
+  });
 
   document.getElementById("exportBtn").addEventListener("click", ()=>{
     const headers = ["Area","User","Report","Frequency","Day(s) due","Due date","Send to","Status","Notes"];
