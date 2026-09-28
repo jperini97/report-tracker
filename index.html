@@ -326,12 +326,15 @@
   }
   .add-grid{
     display:grid;
-    grid-template-columns: 1fr 1fr 1.4fr 0.9fr 1.1fr 1fr 0.9fr 0.9fr 1.4fr;
+    grid-template-columns: 1fr 1fr 1.3fr 0.9fr 1.1fr 1fr 0.9fr 0.9fr 1.3fr auto;
     gap:8px;
     align-items:start;
   }
   .add-grid input, .add-grid select{
     width:100%;
+  }
+  .add-grid button{
+    align-self:start;
   }
 
   /* Pending approval */
@@ -525,6 +528,7 @@
         <input type="text" id="in-sendto" placeholder="Send to">
         <select id="in-status"></select>
         <input type="text" id="in-notes" placeholder="Notes (optional)">
+        <button class="btn brass" id="addBtnInline">Add</button>
       </div>
     </div>
 
@@ -826,16 +830,19 @@
   }
 
   const addBtn = document.getElementById("addBtn");
+  const addBtnInline = document.getElementById("addBtnInline");
   const addPanelLabel = document.getElementById("addPanelLabel");
   if(isAdmin){
     addBtn.textContent = "Add";
+    addBtnInline.textContent = "Add";
     addPanelLabel.textContent = "Add a report";
   } else {
     addBtn.textContent = "Publish";
+    addBtnInline.textContent = "Publish";
     addPanelLabel.textContent = "Submit a report (reviewed before it appears)";
   }
 
-  addBtn.addEventListener("click", ()=>{
+  function submitReport(){
     const area = document.getElementById("in-area").value;
     const user = document.getElementById("in-user").value.trim();
     const report = document.getElementById("in-report").value.trim();
@@ -868,7 +875,10 @@
     document.getElementById("in-sendto").value="";
     document.getElementById("in-notes").value="";
     document.getElementById("in-report").focus();
-  });
+  }
+
+  addBtn.addEventListener("click", submitReport);
+  addBtnInline.addEventListener("click", submitReport);
 
   document.getElementById("exportBtn").addEventListener("click", ()=>{
     const headers = ["Area","User","Report","Frequency","Day(s) due","Due date","Send to","Status","Notes"];
